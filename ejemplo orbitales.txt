@@ -1,0 +1,93 @@
+%Tomado de: http://www.sc.ehu.es/sbweb/fisica3/datos/fourier/fourier_1.html
+
+clear all
+close all
+clc
+
+%***********
+
+n=2^14; % nÃºmero de muestras
+dt=0.0001; % intervalo de muestreo
+% determine el efecto   del  dt  en la frecuencias
+t=(0:n-1)*dt; %vector de tiempos
+H=200;%Hz
+w=H*2*pi;%rad/seg
+masa=20/1000;%kg
+radio=0.05;%m
+Acel_Normal=((w^2)*radio)/9.87 %en gravedades
+x = Acel_Normal*sin(w*t-0*pi/180) ;
+
+
+figure
+plot(t,x)
+xlabel('t')
+ylabel('x(t)')
+title('SeÃ±al temporal')
+g=fft(x);
+power=abs(g).^2;
+dw=2*pi/(n*dt);
+w=(0:n-1)*dw; 
+wc=pi/dt; %frecuencia angular crÃ­tica
+p = unwrap(angle(g));;
+figure
+plot(w,power)
+xlim([0 wc])
+xlabel('\omega')
+ylabel('P(\omega)')
+grid on
+title('Espectro de potencia')
+figure
+plot(w,p)
+xlim([0 wc])
+xlabel('\omega')
+ylabel('Phase [Degrees]')
+grid on
+title('\omega vs Phase [Degrees] ')
+%%%%%%%%
+%%%%%%%%
+
+n=2^14; % nÃºmero de muestras
+dt=0.0001; % intervalo de muestreo
+% determine el efecto   del  dt  en la frecuencias
+t=(0:n-1)*dt; %vector de tiempos
+H=200;%Hz
+w=H*2*pi;%rad/seg
+masa=20/1000;%kg
+radio=0.05;%m
+Acel_Normal=((w^2)*radio)/9.87 %en gravedades
+y2= Acel_Normal*sin(w*t-135*pi/180-90*pi/180 );
+
+figure
+plot(t,y2)
+xlabel('t')
+ylabel('y(t)')
+title('SeÃ±al temporal')
+g2=fft(y2);
+power2=abs(g2).^2;
+dw=2*pi/(n*dt);
+w=(0:n-1)*dw; 
+wc=pi/dt; %frecuencia angular crÃ­tica
+p2 = unwrap(angle(g2));;
+figure
+plot(w,power2)
+xlim([0 wc])
+xlabel('\omega')
+ylabel('P(\omega)')
+grid on
+title('Espectro de potencia')
+figure
+plot(w,p2)
+xlim([0 wc])
+xlabel('\omega')
+ylabel('Phase [Degrees]')
+grid on
+title('\omega vs Phase [Degrees] ')
+
+
+figure
+plot(x,y2)
+title('desbalanceado')
+ylabel('g')
+xlabel('g')
+%%%%%%%%
+%%%%%%%%
