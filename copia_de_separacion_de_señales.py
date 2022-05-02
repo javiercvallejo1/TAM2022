@@ -7,138 +7,169 @@ Original file is located at
     https://colab.research.google.com/drive/1Nx7A74CFzZj55IJNt0YzH1mzg19Mfnha
 """
 
+from scipy.signal import butter, lfilter, resample, lfilter
+import tensorflow as tf
+from sklearn.metrics import roc_curve, roc_auc_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+import h5py
+import scipy.io
+from scipy.fft import rfft, rfftfreq
+from scipy.signal.filter_design import butter
+import pywt.data
+import pywt
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from google.colab import drive
 drive.mount('/content/drive')
 
-pip install h5py #not needed
+pip install h5py  # not needed
 
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import pywt
-import pywt.data
-from scipy.signal.filter_design import butter
-from scipy.signal import butter,lfilter,resample,lfilter
-from scipy.fft import rfft, rfftfreq
-import scipy.io
-import h5py
 
-# 1 RMS 
-def RMS_ventaneado(window,signal,freq_sample):
-  T = np.arange(window/freq_sample,len(signal)/freq_sample, window/freq_sample)
-  RMS = []
-  f = 0
-  i = 0
-  for i in range(int(len(signal)/window)): 
-    s = 0
-    for f in range(window):
-      s = s + signal[f+(i*window)]**2 
-    l = np.sqrt(s/window)
-    RMS.append(l)
-  return RMS
+# 1 RMS
+
+
+def RMS_ventaneado(window, signal, freq_sample):
+    T = np.arange(window/freq_sample, len(signal) /
+                  freq_sample, window/freq_sample)
+    RMS = []
+    f = 0
+    i = 0
+    for i in range(int(len(signal)/window)):
+        s = 0
+        for f in range(window):
+            s = s + signal[f+(i*window)]**2
+        l = np.sqrt(s/window)
+        RMS.append(l)
+    return RMS
 
 
 # 2 Desv. estandar
 def std_ventaneado(window, signal, freq_sample):
-  T = np.arange(window/freq_sample,len(signal)/freq_sample, window/freq_sample)
-  std = []
-  f = 0
-  i = 0
-  c = 0
-  for i in range(int(len(signal)/window)): 
-    s = 0
-    lista = [] 
-    for f in range(window):
-      lista.append(signal[f+(i*window)])
-    mean = np.mean(lista)
-    for c in range(window):
-      s = s + (signal[c+(i*window)]-mean)**2
-    l = np.sqrt((s/(window-1)))
-    std.append(l)
-  return std
+    T = np.arange(window/freq_sample, len(signal) /
+                  freq_sample, window/freq_sample)
+    std = []
+    f = 0
+    i = 0
+    c = 0
+    for i in range(int(len(signal)/window)):
+        s = 0
+        lista = []
+        for f in range(window):
+            lista.append(signal[f+(i*window)])
+        mean = np.mean(lista)
+        for c in range(window):
+            s = s + (signal[c+(i*window)]-mean)**2
+        l = np.sqrt((s/(window-1)))
+        std.append(l)
+    return std
 
 # 3 Media
+
+
 def mean_ventaneado(window, signal, freq_sample):
-  T = np.arange(window/freq_sample,len(signal)/freq_sample, window/freq_sample)
-  mean = []
-  f = 0
-  i = 0
-  for i in range(int(len(signal)/window)): 
-    s = 0
-    for f in range(window):
-      s = s + signal[f+(i*window)] 
-    l = (s/window)
-    mean.append(l)
-  return mean 
+    T = np.arange(window/freq_sample, len(signal) /
+                  freq_sample, window/freq_sample)
+    mean = []
+    f = 0
+    i = 0
+    for i in range(int(len(signal)/window)):
+        s = 0
+        for f in range(window):
+            s = s + signal[f+(i*window)]
+        l = (s/window)
+        mean.append(l)
+    return mean
 
 # 4 pico pico
-def PK_ventaneado(window,signal,freq_sample):
-  T = np.arange(window/freq_sample,len(signal)/freq_sample, window/freq_sample)
-  PK = []
-  f = 0
-  i = 0
-  for i in range(int(len(signal)/window)): 
-    s = 0
-    lt = []
-    for f in range(window):
-      lt.append(signal[f+(i*window)])
-    d = np.min(lt)
-    f = np.max(lt)
-    l = f - d
-    PK.append(l)
-  return PK
+
+
+def PK_ventaneado(window, signal, freq_sample):
+    T = np.arange(window/freq_sample, len(signal) /
+                  freq_sample, window/freq_sample)
+    PK = []
+    f = 0
+    i = 0
+    for i in range(int(len(signal)/window)):
+        s = 0
+        lt = []
+        for f in range(window):
+            lt.append(signal[f+(i*window)])
+        d = np.min(lt)
+        f = np.max(lt)
+        l = f - d
+        PK.append(l)
+    return PK
 
 # 5 Kourtosis
+
+
 def KTS_ventaneado(window, signal, freq_sample):
-  T = np.arange(window/freq_sample,len(signal)/freq_sample, window/freq_sample)
-  KTS = []
-  f = 0
-  i = 0
-  c = 0 
-  for i in range(int(len(signal)/window)): 
-   s = 0
-   lista = [] 
-   for f in range(window):
-    lista.append(signal[f+(i*window)])
-   mean = np.mean(lista)
-   desv = np.std(lista)
-   for c in range(window):
-     s = s + ((signal[c+(i*window)]-mean)/desv)**4
-   l = s*((window*(window+1))/((window-1)*(window-2)*(window-3))) - ((3*(window-1)**2)/((window-2)*(window-3)))
-   KTS.append(l)
-  return KTS
+    T = np.arange(window/freq_sample, len(signal) /
+                  freq_sample, window/freq_sample)
+    KTS = []
+    f = 0
+    i = 0
+    c = 0
+    for i in range(int(len(signal)/window)):
+        s = 0
+        lista = []
+        for f in range(window):
+            lista.append(signal[f+(i*window)])
+        mean = np.mean(lista)
+        desv = np.std(lista)
+        for c in range(window):
+            s = s + ((signal[c+(i*window)]-mean)/desv)**4
+        l = s*((window*(window+1))/((window-1)*(window-2)*(window-3))) - \
+            ((3*(window-1)**2)/((window-2)*(window-3)))
+        KTS.append(l)
+    return KTS
 
 # 6 asimetria
+
+
 def SKS_ventaneado(window, signal, freq_sample):
-  T = np.arange(window/freq_sample,len(signal)/freq_sample, window/freq_sample)
-  SKS = []
-  f = 0
-  i = 0
-  c = 0 
-  for i in range(int(len(signal)/window)): 
-   s = 0
-   lista = [] 
-   for f in range(window):
-    lista.append(signal[f+(i*window)])
-   mean = np.mean(lista)
-   desv = np.std(lista)
-   for c in range(window):
-     s = s + ((signal[c+(i*window)]-mean)/desv)**3
-   l = s*(window/(window-1)*(window-2))
-   SKS.append(l)
-  return SKS
+    T = np.arange(window/freq_sample, len(signal) /
+                  freq_sample, window/freq_sample)
+    SKS = []
+    f = 0
+    i = 0
+    c = 0
+    for i in range(int(len(signal)/window)):
+        s = 0
+        lista = []
+        for f in range(window):
+            lista.append(signal[f+(i*window)])
+        mean = np.mean(lista)
+        desv = np.std(lista)
+        for c in range(window):
+            s = s + ((signal[c+(i*window)]-mean)/desv)**3
+        l = s*(window/(window-1)*(window-2))
+        SKS.append(l)
+    return SKS
 
-# 7 fourier transform 
+# 7 fourier transform
+
+
 def Fourier_transform(signal, freq_sample):
-  N = signal.size
-  yf = rfft(signal)
-  xf = rfftfreq(N, 1/freq_sample)
+    N = signal.size
+    yf = rfft(signal)
+    xf = rfftfreq(N, 1/freq_sample)
 
-  plt.figure(figsize=(10,5))
-  plt.title("Transformada de Fourier de la señal", fontdict={'family': 'monospace', 'weight': 'bold','size': 10})
-  plt.grid()
-  plt.plot(xf, np.abs(yf))
-  plt.show()
+    plt.figure(figsize=(10, 5))
+    plt.title("Transformada de Fourier de la señal", fontdict={
+              'family': 'monospace', 'weight': 'bold', 'size': 10})
+    plt.grid()
+    plt.plot(xf, np.abs(yf))
+    plt.show()
+
 
 filepath = '/content/drive/MyDrive/PAE - Machine learning/4. Datos/Información de Pittsburgh/LRV4306/Señales a trabajar /1018_20140110_3_3_7_2_2.mat'
 data = {}
@@ -289,180 +320,185 @@ signal_21 = data['save_var'][0]
 
 int(len(signal_1)/20)
 
-#particion de señales RMS
-RMS_1 = RMS_ventaneado(int(len(signal_1)/20), signal_1,1600)
-RMS_2 = RMS_ventaneado(int(len(signal_2)/20), signal_2,1600)
-RMS_3 = RMS_ventaneado(int(len(signal_3)/20), signal_3,1600)
-RMS_4 = RMS_ventaneado(int(len(signal_4)/20), signal_4,1600)
-RMS_5 = RMS_ventaneado(int(len(signal_5)/20), signal_5,1600)
-RMS_6 = RMS_ventaneado(int(len(signal_6)/20), signal_6,1600)
-RMS_7 = RMS_ventaneado(int(len(signal_7)/20), signal_7,1600)
-RMS_8 = RMS_ventaneado(int(len(signal_8)/20), signal_8,1600)
-RMS_9 = RMS_ventaneado(int(len(signal_9)/20), signal_9,1600)
-RMS_10 = RMS_ventaneado(int(len(signal_10)/20), signal_10,1600)
-RMS_11 = RMS_ventaneado(int(len(signal_11)/20), signal_11,1600)
-RMS_12 = RMS_ventaneado(int(len(signal_12)/20), signal_12,1600)
-RMS_13 = RMS_ventaneado(int(len(signal_13)/20), signal_13,1600)
-RMS_14 = RMS_ventaneado(int(len(signal_14)/20), signal_14,1600)
-RMS_15 = RMS_ventaneado(int(len(signal_15)/20), signal_15,1600)
-RMS_16 = RMS_ventaneado(int(len(signal_16)/20), signal_16,1600)
-RMS_17 = RMS_ventaneado(int(len(signal_17)/20), signal_17,1600)
-RMS_18 = RMS_ventaneado(int(len(signal_18)/20), signal_18,1600)
-RMS_19 = RMS_ventaneado(int(len(signal_19)/20), signal_19,1600)
-RMS_20 = RMS_ventaneado(int(len(signal_20)/20), signal_20,1600)
-RMS_21 = RMS_ventaneado(int(len(signal_21)/20), signal_21,1600)
-vector_RMS = RMS_1 + RMS_2 + RMS_3 + RMS_4 +  RMS_5 +  RMS_6 +  RMS_7 +  RMS_8 +  RMS_9 +  RMS_10 +  RMS_11 +  RMS_12 +  RMS_13 +  RMS_14 +  RMS_15 +  RMS_16 +  RMS_17 +  RMS_18 +  RMS_19 + RMS_20 + RMS_21
+# particion de señales RMS
+RMS_1 = RMS_ventaneado(int(len(signal_1)/20), signal_1, 1600)
+RMS_2 = RMS_ventaneado(int(len(signal_2)/20), signal_2, 1600)
+RMS_3 = RMS_ventaneado(int(len(signal_3)/20), signal_3, 1600)
+RMS_4 = RMS_ventaneado(int(len(signal_4)/20), signal_4, 1600)
+RMS_5 = RMS_ventaneado(int(len(signal_5)/20), signal_5, 1600)
+RMS_6 = RMS_ventaneado(int(len(signal_6)/20), signal_6, 1600)
+RMS_7 = RMS_ventaneado(int(len(signal_7)/20), signal_7, 1600)
+RMS_8 = RMS_ventaneado(int(len(signal_8)/20), signal_8, 1600)
+RMS_9 = RMS_ventaneado(int(len(signal_9)/20), signal_9, 1600)
+RMS_10 = RMS_ventaneado(int(len(signal_10)/20), signal_10, 1600)
+RMS_11 = RMS_ventaneado(int(len(signal_11)/20), signal_11, 1600)
+RMS_12 = RMS_ventaneado(int(len(signal_12)/20), signal_12, 1600)
+RMS_13 = RMS_ventaneado(int(len(signal_13)/20), signal_13, 1600)
+RMS_14 = RMS_ventaneado(int(len(signal_14)/20), signal_14, 1600)
+RMS_15 = RMS_ventaneado(int(len(signal_15)/20), signal_15, 1600)
+RMS_16 = RMS_ventaneado(int(len(signal_16)/20), signal_16, 1600)
+RMS_17 = RMS_ventaneado(int(len(signal_17)/20), signal_17, 1600)
+RMS_18 = RMS_ventaneado(int(len(signal_18)/20), signal_18, 1600)
+RMS_19 = RMS_ventaneado(int(len(signal_19)/20), signal_19, 1600)
+RMS_20 = RMS_ventaneado(int(len(signal_20)/20), signal_20, 1600)
+RMS_21 = RMS_ventaneado(int(len(signal_21)/20), signal_21, 1600)
+vector_RMS = RMS_1 + RMS_2 + RMS_3 + RMS_4 + RMS_5 + RMS_6 + RMS_7 + RMS_8 + RMS_9 + RMS_10 + \
+    RMS_11 + RMS_12 + RMS_13 + RMS_14 + RMS_15 + RMS_16 + \
+    RMS_17 + RMS_18 + RMS_19 + RMS_20 + RMS_21
 
 
+MN_1 = mean_ventaneado(int(len(signal_1)/20), signal_1, 1600)
+MN_2 = mean_ventaneado(int(len(signal_2)/20), signal_2, 1600)
+MN_3 = mean_ventaneado(int(len(signal_3)/20), signal_3, 1600)
+MN_4 = mean_ventaneado(int(len(signal_4)/20), signal_4, 1600)
+MN_5 = mean_ventaneado(int(len(signal_5)/20), signal_5, 1600)
+MN_6 = mean_ventaneado(int(len(signal_6)/20), signal_6, 1600)
+MN_7 = mean_ventaneado(int(len(signal_7)/20), signal_7, 1600)
+MN_8 = mean_ventaneado(int(len(signal_8)/20), signal_8, 1600)
+MN_9 = mean_ventaneado(int(len(signal_9)/20), signal_9, 1600)
+MN_10 = mean_ventaneado(int(len(signal_10)/20), signal_10, 1600)
+MN_11 = mean_ventaneado(int(len(signal_11)/20), signal_11, 1600)
+MN_12 = mean_ventaneado(int(len(signal_12)/20), signal_12, 1600)
+MN_13 = mean_ventaneado(int(len(signal_13)/20), signal_13, 1600)
+MN_14 = mean_ventaneado(int(len(signal_14)/20), signal_14, 1600)
+MN_15 = mean_ventaneado(int(len(signal_15)/20), signal_15, 1600)
+MN_16 = mean_ventaneado(int(len(signal_16)/20), signal_16, 1600)
+MN_17 = mean_ventaneado(int(len(signal_17)/20), signal_17, 1600)
+MN_18 = mean_ventaneado(int(len(signal_18)/20), signal_18, 1600)
+MN_19 = mean_ventaneado(int(len(signal_19)/20), signal_19, 1600)
+MN_20 = mean_ventaneado(int(len(signal_20)/20), signal_20, 1600)
+MN_21 = mean_ventaneado(int(len(signal_21)/20), signal_21, 1600)
+vector_MN = MN_1+MN_2+MN_3+MN_4+MN_5+MN_6+MN_7+MN_8+MN_9+MN_10 + \
+    MN_11+MN_12+MN_13+MN_14+MN_15+MN_16+MN_17+MN_18+MN_19+MN_20+MN_21
 
-MN_1 = mean_ventaneado(int(len(signal_1)/20), signal_1,1600)
-MN_2 = mean_ventaneado(int(len(signal_2)/20), signal_2,1600)
-MN_3 = mean_ventaneado(int(len(signal_3)/20), signal_3,1600)
-MN_4 = mean_ventaneado(int(len(signal_4)/20), signal_4,1600)
-MN_5 = mean_ventaneado(int(len(signal_5)/20), signal_5,1600)
-MN_6 = mean_ventaneado(int(len(signal_6)/20), signal_6,1600)
-MN_7 = mean_ventaneado(int(len(signal_7)/20), signal_7,1600)
-MN_8 = mean_ventaneado(int(len(signal_8)/20), signal_8,1600)
-MN_9 = mean_ventaneado(int(len(signal_9)/20), signal_9,1600)
-MN_10 = mean_ventaneado(int(len(signal_10)/20), signal_10,1600)
-MN_11 = mean_ventaneado(int(len(signal_11)/20), signal_11,1600)
-MN_12 = mean_ventaneado(int(len(signal_12)/20), signal_12,1600)
-MN_13 = mean_ventaneado(int(len(signal_13)/20), signal_13,1600)
-MN_14 = mean_ventaneado(int(len(signal_14)/20), signal_14,1600)
-MN_15 = mean_ventaneado(int(len(signal_15)/20), signal_15,1600)
-MN_16 = mean_ventaneado(int(len(signal_16)/20), signal_16,1600)
-MN_17 = mean_ventaneado(int(len(signal_17)/20), signal_17,1600)
-MN_18 = mean_ventaneado(int(len(signal_18)/20), signal_18,1600)
-MN_19 = mean_ventaneado(int(len(signal_19)/20), signal_19,1600)
-MN_20 = mean_ventaneado(int(len(signal_20)/20), signal_20,1600)
-MN_21 = mean_ventaneado(int(len(signal_21)/20), signal_21,1600)
-vector_MN = MN_1+MN_2+MN_3+MN_4+MN_5+MN_6+MN_7+MN_8+MN_9+MN_10+MN_11+MN_12+MN_13+MN_14+MN_15+MN_16+MN_17+MN_18+MN_19+MN_20+MN_21
+STD_1 = std_ventaneado(int(len(signal_1)/20), signal_1, 1600)
+STD_2 = std_ventaneado(int(len(signal_2)/20), signal_2, 1600)
+STD_3 = std_ventaneado(int(len(signal_3)/20), signal_3, 1600)
+STD_4 = std_ventaneado(int(len(signal_4)/20), signal_4, 1600)
+STD_5 = std_ventaneado(int(len(signal_5)/20), signal_5, 1600)
+STD_6 = std_ventaneado(int(len(signal_6)/20), signal_6, 1600)
+STD_7 = std_ventaneado(int(len(signal_7)/20), signal_7, 1600)
+STD_8 = std_ventaneado(int(len(signal_8)/20), signal_8, 1600)
+STD_9 = std_ventaneado(int(len(signal_9)/20), signal_9, 1600)
+STD_10 = std_ventaneado(int(len(signal_10)/20), signal_10, 1600)
+STD_11 = std_ventaneado(int(len(signal_11)/20), signal_11, 1600)
+STD_12 = std_ventaneado(int(len(signal_12)/20), signal_12, 1600)
+STD_13 = std_ventaneado(int(len(signal_13)/20), signal_13, 1600)
+STD_14 = std_ventaneado(int(len(signal_14)/20), signal_14, 1600)
+STD_15 = std_ventaneado(int(len(signal_15)/20), signal_15, 1600)
+STD_16 = std_ventaneado(int(len(signal_16)/20), signal_16, 1600)
+STD_17 = std_ventaneado(int(len(signal_17)/20), signal_17, 1600)
+STD_18 = std_ventaneado(int(len(signal_18)/20), signal_18, 1600)
+STD_19 = std_ventaneado(int(len(signal_19)/20), signal_19, 1600)
+STD_20 = std_ventaneado(int(len(signal_20)/20), signal_20, 1600)
+STD_21 = std_ventaneado(int(len(signal_21)/20), signal_21, 1600)
+vector_STD = STD_1+STD_2+STD_3+STD_4+STD_5+STD_6+STD_7+STD_8+STD_9+STD_10 + \
+    STD_11+STD_12+STD_13+STD_14+STD_15+STD_16+STD_17+STD_18+STD_19+STD_20+STD_21
 
-STD_1 = std_ventaneado(int(len(signal_1)/20), signal_1,1600)
-STD_2 = std_ventaneado(int(len(signal_2)/20), signal_2,1600)
-STD_3 = std_ventaneado(int(len(signal_3)/20), signal_3,1600)
-STD_4 = std_ventaneado(int(len(signal_4)/20), signal_4,1600)
-STD_5 = std_ventaneado(int(len(signal_5)/20), signal_5,1600)
-STD_6 = std_ventaneado(int(len(signal_6)/20), signal_6,1600)
-STD_7 = std_ventaneado(int(len(signal_7)/20), signal_7,1600)
-STD_8 = std_ventaneado(int(len(signal_8)/20), signal_8,1600)
-STD_9 = std_ventaneado(int(len(signal_9)/20), signal_9,1600)
-STD_10 = std_ventaneado(int(len(signal_10)/20), signal_10,1600)
-STD_11 = std_ventaneado(int(len(signal_11)/20), signal_11,1600)
-STD_12 = std_ventaneado(int(len(signal_12)/20), signal_12,1600)
-STD_13 = std_ventaneado(int(len(signal_13)/20), signal_13,1600)
-STD_14 = std_ventaneado(int(len(signal_14)/20), signal_14,1600)
-STD_15 = std_ventaneado(int(len(signal_15)/20), signal_15,1600)
-STD_16 = std_ventaneado(int(len(signal_16)/20), signal_16,1600)
-STD_17 = std_ventaneado(int(len(signal_17)/20), signal_17,1600)
-STD_18 = std_ventaneado(int(len(signal_18)/20), signal_18,1600)
-STD_19 = std_ventaneado(int(len(signal_19)/20), signal_19,1600)
-STD_20 = std_ventaneado(int(len(signal_20)/20), signal_20,1600)
-STD_21 = std_ventaneado(int(len(signal_21)/20), signal_21,1600)
-vector_STD = STD_1+STD_2+STD_3+STD_4+STD_5+STD_6+STD_7+STD_8+STD_9+STD_10+STD_11+STD_12+STD_13+STD_14+STD_15+STD_16+STD_17+STD_18+STD_19+STD_20+STD_21
+PK_1 = PK_ventaneado(int(len(signal_1)/20), signal_1, 1600)
+PK_2 = PK_ventaneado(int(len(signal_2)/20), signal_2, 1600)
+PK_3 = PK_ventaneado(int(len(signal_3)/20), signal_3, 1600)
+PK_4 = PK_ventaneado(int(len(signal_4)/20), signal_4, 1600)
+PK_5 = PK_ventaneado(int(len(signal_5)/20), signal_5, 1600)
+PK_6 = PK_ventaneado(int(len(signal_6)/20), signal_6, 1600)
+PK_7 = PK_ventaneado(int(len(signal_7)/20), signal_7, 1600)
+PK_8 = PK_ventaneado(int(len(signal_8)/20), signal_8, 1600)
+PK_9 = PK_ventaneado(int(len(signal_9)/20), signal_9, 1600)
+PK_10 = PK_ventaneado(int(len(signal_10)/20), signal_10, 1600)
+PK_11 = PK_ventaneado(int(len(signal_11)/20), signal_11, 1600)
+PK_12 = PK_ventaneado(int(len(signal_12)/20), signal_12, 1600)
+PK_13 = PK_ventaneado(int(len(signal_13)/20), signal_13, 1600)
+PK_14 = PK_ventaneado(int(len(signal_14)/20), signal_14, 1600)
+PK_15 = PK_ventaneado(int(len(signal_15)/20), signal_15, 1600)
+PK_16 = PK_ventaneado(int(len(signal_16)/20), signal_16, 1600)
+PK_17 = PK_ventaneado(int(len(signal_17)/20), signal_17, 1600)
+PK_18 = PK_ventaneado(int(len(signal_18)/20), signal_18, 1600)
+PK_19 = PK_ventaneado(int(len(signal_19)/20), signal_19, 1600)
+PK_20 = PK_ventaneado(int(len(signal_20)/20), signal_20, 1600)
+PK_21 = PK_ventaneado(int(len(signal_21)/20), signal_21, 1600)
+vector_PK = PK_1+PK_2+PK_3+PK_4+PK_5+PK_6+PK_7+PK_8+PK_9+PK_10 + \
+    PK_11+PK_12+PK_13+PK_14+PK_15+PK_16+PK_17+PK_18+PK_19+PK_20+PK_21
 
-PK_1 = PK_ventaneado(int(len(signal_1)/20), signal_1,1600)
-PK_2 = PK_ventaneado(int(len(signal_2)/20), signal_2,1600)
-PK_3 = PK_ventaneado(int(len(signal_3)/20), signal_3,1600)
-PK_4 = PK_ventaneado(int(len(signal_4)/20), signal_4,1600)
-PK_5 = PK_ventaneado(int(len(signal_5)/20), signal_5,1600)
-PK_6 = PK_ventaneado(int(len(signal_6)/20), signal_6,1600)
-PK_7 = PK_ventaneado(int(len(signal_7)/20), signal_7,1600)
-PK_8 = PK_ventaneado(int(len(signal_8)/20), signal_8,1600)
-PK_9 = PK_ventaneado(int(len(signal_9)/20), signal_9,1600)
-PK_10 = PK_ventaneado(int(len(signal_10)/20), signal_10,1600)
-PK_11 = PK_ventaneado(int(len(signal_11)/20), signal_11,1600)
-PK_12 = PK_ventaneado(int(len(signal_12)/20), signal_12,1600)
-PK_13 = PK_ventaneado(int(len(signal_13)/20), signal_13,1600)
-PK_14 = PK_ventaneado(int(len(signal_14)/20), signal_14,1600)
-PK_15 = PK_ventaneado(int(len(signal_15)/20), signal_15,1600)
-PK_16 = PK_ventaneado(int(len(signal_16)/20), signal_16,1600)
-PK_17 = PK_ventaneado(int(len(signal_17)/20), signal_17,1600)
-PK_18 = PK_ventaneado(int(len(signal_18)/20), signal_18,1600)
-PK_19 = PK_ventaneado(int(len(signal_19)/20), signal_19,1600)
-PK_20 = PK_ventaneado(int(len(signal_20)/20), signal_20,1600)
-PK_21 = PK_ventaneado(int(len(signal_21)/20), signal_21,1600)
-vector_PK = PK_1+PK_2+PK_3+PK_4+PK_5+PK_6+PK_7+PK_8+PK_9+PK_10+PK_11+PK_12+PK_13+PK_14+PK_15+PK_16+PK_17+PK_18+PK_19+PK_20+PK_21
+KTS_1 = KTS_ventaneado(int(len(signal_1)/20), signal_1, 1600)
+KTS_2 = KTS_ventaneado(int(len(signal_2)/20), signal_2, 1600)
+KTS_3 = KTS_ventaneado(int(len(signal_3)/20), signal_3, 1600)
+KTS_4 = KTS_ventaneado(int(len(signal_4)/20), signal_4, 1600)
+KTS_5 = KTS_ventaneado(int(len(signal_5)/20), signal_5, 1600)
+KTS_6 = KTS_ventaneado(int(len(signal_6)/20), signal_6, 1600)
+KTS_7 = KTS_ventaneado(int(len(signal_7)/20), signal_7, 1600)
+KTS_8 = KTS_ventaneado(int(len(signal_8)/20), signal_8, 1600)
+KTS_9 = KTS_ventaneado(int(len(signal_9)/20), signal_9, 1600)
+KTS_10 = KTS_ventaneado(int(len(signal_10)/20), signal_10, 1600)
+KTS_11 = KTS_ventaneado(int(len(signal_11)/20), signal_11, 1600)
+KTS_12 = KTS_ventaneado(int(len(signal_12)/20), signal_12, 1600)
+KTS_13 = KTS_ventaneado(int(len(signal_13)/20), signal_13, 1600)
+KTS_14 = KTS_ventaneado(int(len(signal_14)/20), signal_14, 1600)
+KTS_15 = KTS_ventaneado(int(len(signal_15)/20), signal_15, 1600)
+KTS_16 = KTS_ventaneado(int(len(signal_16)/20), signal_16, 1600)
+KTS_17 = KTS_ventaneado(int(len(signal_17)/20), signal_17, 1600)
+KTS_18 = KTS_ventaneado(int(len(signal_18)/20), signal_18, 1600)
+KTS_19 = KTS_ventaneado(int(len(signal_19)/20), signal_19, 1600)
+KTS_20 = KTS_ventaneado(int(len(signal_20)/20), signal_20, 1600)
+KTS_21 = KTS_ventaneado(int(len(signal_21)/20), signal_21, 1600)
+vector_KTS = KTS_1+KTS_2+KTS_3+KTS_4+KTS_5+KTS_6+KTS_7+KTS_8+KTS_9+KTS_10 + \
+    KTS_11+KTS_12+KTS_13+KTS_14+KTS_15+KTS_16+KTS_17+KTS_18+KTS_19+KTS_20+KTS_21
 
-KTS_1 = KTS_ventaneado(int(len(signal_1)/20), signal_1,1600)
-KTS_2 = KTS_ventaneado(int(len(signal_2)/20), signal_2,1600)
-KTS_3 = KTS_ventaneado(int(len(signal_3)/20), signal_3,1600)
-KTS_4 = KTS_ventaneado(int(len(signal_4)/20), signal_4,1600)
-KTS_5 = KTS_ventaneado(int(len(signal_5)/20), signal_5,1600)
-KTS_6 = KTS_ventaneado(int(len(signal_6)/20), signal_6,1600)
-KTS_7 = KTS_ventaneado(int(len(signal_7)/20), signal_7,1600)
-KTS_8 = KTS_ventaneado(int(len(signal_8)/20), signal_8,1600)
-KTS_9 = KTS_ventaneado(int(len(signal_9)/20), signal_9,1600)
-KTS_10 = KTS_ventaneado(int(len(signal_10)/20), signal_10,1600)
-KTS_11 = KTS_ventaneado(int(len(signal_11)/20), signal_11,1600)
-KTS_12 = KTS_ventaneado(int(len(signal_12)/20), signal_12,1600)
-KTS_13 = KTS_ventaneado(int(len(signal_13)/20), signal_13,1600)
-KTS_14 = KTS_ventaneado(int(len(signal_14)/20), signal_14,1600)
-KTS_15 = KTS_ventaneado(int(len(signal_15)/20), signal_15,1600)
-KTS_16 = KTS_ventaneado(int(len(signal_16)/20), signal_16,1600)
-KTS_17 = KTS_ventaneado(int(len(signal_17)/20), signal_17,1600)
-KTS_18 = KTS_ventaneado(int(len(signal_18)/20), signal_18,1600)
-KTS_19 = KTS_ventaneado(int(len(signal_19)/20), signal_19,1600)
-KTS_20 = KTS_ventaneado(int(len(signal_20)/20), signal_20,1600)
-KTS_21 = KTS_ventaneado(int(len(signal_21)/20), signal_21,1600)
-vector_KTS = KTS_1+KTS_2+KTS_3+KTS_4+KTS_5+KTS_6+KTS_7+KTS_8+KTS_9+KTS_10+KTS_11+KTS_12+KTS_13+KTS_14+KTS_15+KTS_16+KTS_17+KTS_18+KTS_19+KTS_20+KTS_21
+SKS_1 = SKS_ventaneado(int(len(signal_1)/20), signal_1, 1600)
+SKS_2 = SKS_ventaneado(int(len(signal_2)/20), signal_2, 1600)
+SKS_3 = SKS_ventaneado(int(len(signal_3)/20), signal_3, 1600)
+SKS_4 = SKS_ventaneado(int(len(signal_4)/20), signal_4, 1600)
+SKS_5 = SKS_ventaneado(int(len(signal_5)/20), signal_5, 1600)
+SKS_6 = SKS_ventaneado(int(len(signal_6)/20), signal_6, 1600)
+SKS_7 = SKS_ventaneado(int(len(signal_7)/20), signal_7, 1600)
+SKS_8 = SKS_ventaneado(int(len(signal_8)/20), signal_8, 1600)
+SKS_9 = SKS_ventaneado(int(len(signal_9)/20), signal_9, 1600)
+SKS_10 = SKS_ventaneado(int(len(signal_10)/20), signal_10, 1600)
+SKS_11 = SKS_ventaneado(int(len(signal_11)/20), signal_11, 1600)
+SKS_12 = SKS_ventaneado(int(len(signal_12)/20), signal_12, 1600)
+SKS_13 = SKS_ventaneado(int(len(signal_13)/20), signal_13, 1600)
+SKS_14 = SKS_ventaneado(int(len(signal_14)/20), signal_14, 1600)
+SKS_15 = SKS_ventaneado(int(len(signal_15)/20), signal_15, 1600)
+SKS_16 = SKS_ventaneado(int(len(signal_16)/20), signal_16, 1600)
+SKS_17 = SKS_ventaneado(int(len(signal_17)/20), signal_17, 1600)
+SKS_18 = SKS_ventaneado(int(len(signal_18)/20), signal_18, 1600)
+SKS_19 = SKS_ventaneado(int(len(signal_19)/20), signal_19, 1600)
+SKS_20 = SKS_ventaneado(int(len(signal_20)/20), signal_20, 1600)
+SKS_21 = SKS_ventaneado(int(len(signal_21)/20), signal_21, 1600)
+vector_SKS = SKS_1+SKS_2+SKS_3+SKS_4+SKS_5+SKS_6+SKS_7+SKS_8+SKS_9+SKS_10 + \
+    SKS_11+SKS_12+SKS_13+SKS_14+SKS_15+SKS_16+SKS_17+SKS_18+SKS_19+SKS_20+SKS_21
 
-SKS_1 = SKS_ventaneado(int(len(signal_1)/20), signal_1,1600)
-SKS_2 = SKS_ventaneado(int(len(signal_2)/20), signal_2,1600)
-SKS_3 = SKS_ventaneado(int(len(signal_3)/20), signal_3,1600)
-SKS_4 = SKS_ventaneado(int(len(signal_4)/20), signal_4,1600)
-SKS_5 = SKS_ventaneado(int(len(signal_5)/20), signal_5,1600)
-SKS_6 = SKS_ventaneado(int(len(signal_6)/20), signal_6,1600)
-SKS_7 = SKS_ventaneado(int(len(signal_7)/20), signal_7,1600)
-SKS_8 = SKS_ventaneado(int(len(signal_8)/20), signal_8,1600)
-SKS_9 = SKS_ventaneado(int(len(signal_9)/20), signal_9,1600)
-SKS_10 = SKS_ventaneado(int(len(signal_10)/20), signal_10,1600)
-SKS_11 = SKS_ventaneado(int(len(signal_11)/20), signal_11,1600)
-SKS_12 = SKS_ventaneado(int(len(signal_12)/20), signal_12,1600)
-SKS_13 = SKS_ventaneado(int(len(signal_13)/20), signal_13,1600)
-SKS_14 = SKS_ventaneado(int(len(signal_14)/20), signal_14,1600)
-SKS_15 = SKS_ventaneado(int(len(signal_15)/20), signal_15,1600)
-SKS_16 = SKS_ventaneado(int(len(signal_16)/20), signal_16,1600)
-SKS_17 = SKS_ventaneado(int(len(signal_17)/20), signal_17,1600)
-SKS_18 = SKS_ventaneado(int(len(signal_18)/20), signal_18,1600)
-SKS_19 = SKS_ventaneado(int(len(signal_19)/20), signal_19,1600)
-SKS_20 = SKS_ventaneado(int(len(signal_20)/20), signal_20,1600)
-SKS_21 = SKS_ventaneado(int(len(signal_21)/20), signal_21,1600)
-vector_SKS = SKS_1+SKS_2+SKS_3+SKS_4+SKS_5+SKS_6+SKS_7+SKS_8+SKS_9+SKS_10+SKS_11+SKS_12+SKS_13+SKS_14+SKS_15+SKS_16+SKS_17+SKS_18+SKS_19+SKS_20+SKS_21
-
-s = np.array([vector_RMS,vector_STD,vector_MN,vector_PK,vector_KTS,vector_SKS])
+s = np.array([vector_RMS, vector_STD, vector_MN,
+             vector_PK, vector_KTS, vector_SKS])
 X = s.T
 
-#saber cuantas buenas y malas hay
+# saber cuantas buenas y malas hay
 l = 0
 j = 0
 i = 0
 for i in range(len(vector_RMS)):
-  if vector_RMS[i]>= 0.1:
-    l = l + 1
-  else:  
-    j = j + 1
+    if vector_RMS[i] >= 0.1:
+        l = l + 1
+    else:
+        j = j + 1
 l/(j+l)
 
-#clasificar en buenas y malas segun criterio 
+# clasificar en buenas y malas segun criterio
 
 y = []
-i = 0 
+i = 0
 for i in range(len(vector_RMS)):
-  if vector_RMS[i] >= 0.15:
-    g = 1
-  else:
-    g = 0
-  y.append(g)
+    if vector_RMS[i] >= 0.15:
+        g = 1
+    else:
+        g = 0
+    y.append(g)
 
 y
 Y = np.array(y)
 
 X
 
-from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(X, Y)
-from sklearn.preprocessing import StandardScaler
 scaler = StandardScaler()
 scaler.fit(X_train)
 X_train = scaler.transform(X_train)
@@ -472,36 +508,29 @@ X_test.mean(axis=0)
 
 """##**Primer Modelo**"""
 
-from sklearn.neural_network import MLPClassifier
-#primer modelo
-model_1 = MLPClassifier(hidden_layer_sizes=(6,6,6),
-                    activation = 'logistic',
-                    learning_rate_init=0.01,
-                    solver='lbfgs',
-                    max_iter=6000)
+# primer modelo
+model_1 = MLPClassifier(hidden_layer_sizes=(6, 6, 6),
+                        activation='logistic',
+                        learning_rate_init=0.01,
+                        solver='lbfgs',
+                        max_iter=6000)
 
-model_1.fit(X_train,y_train)
+model_1.fit(X_train, y_train)
 predictions = model_1.predict(X_test)
 predictions
 
 y_test
 
-from sklearn.metrics import classification_report
-print(classification_report(y_test,predictions))
+print(classification_report(y_test, predictions))
 
-from sklearn.metrics import confusion_matrix
 confusion_matrix(y_test, predictions)
 
-from sklearn.metrics import f1_score
 f1_score(y_test, predictions, average=None)
 
-from sklearn.metrics import precision_score
 precision_score(y_test, predictions, average=None)
 
-from sklearn.metrics import recall_score
 recall_score(y_test, predictions, average=None)
 
-from sklearn.metrics import roc_curve, roc_auc_score
 
 r_probs = [0 for _ in range(len(y_test))]
 rf_probs = model_1.predict_proba(X_test)
@@ -511,15 +540,16 @@ rf_probs = rf_probs[:, 1]
 r_fpr, r_tpr, _ = roc_curve(y_test, r_probs)
 rf_fpr, rf_tpr, _ = roc_curve(y_test, rf_probs)
 
-#Cálculo de AUC
+# Cálculo de AUC
 r_auc = roc_auc_score(y_test, r_probs)
 rf_auc = roc_auc_score(y_test, rf_probs)
 rf_auc
 
-#gráfica de la curva ROC
+# gráfica de la curva ROC
 
 plt.plot(r_fpr, r_tpr, linestyle='--', label='(AUROC = %0.3f)' % r_auc)
-plt.plot(rf_fpr, rf_tpr, marker='.', label='Red Neuronal (AUROC = %0.3f)' % rf_auc)
+plt.plot(rf_fpr, rf_tpr, marker='.',
+         label='Red Neuronal (AUROC = %0.3f)' % rf_auc)
 
 plt.title('ROC Plot')
 plt.xlabel('False Positive Rate')
@@ -531,18 +561,14 @@ X_train.shape
 
 """##**Segundo Modelo**"""
 
-#Segundo Modelo 
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import classification_report
-from sklearn.neural_network import MLPClassifier
+# Segundo Modelo
 
-model_2 = MLPClassifier(hidden_layer_sizes=(6,6,6,6),
-                        activation = 'tanh',
+model_2 = MLPClassifier(hidden_layer_sizes=(6, 6, 6, 6),
+                        activation='tanh',
                         learning_rate_init=0.01,
-                        solver = 'lbfgs',
-                        max_iter = 1000,
-                        random_state = 123)
+                        solver='lbfgs',
+                        max_iter=1000,
+                        random_state=123)
 
 X_train, X_test, y_train, y_test = train_test_split(X, Y)
 
@@ -553,49 +579,45 @@ prediction_2
 
 y_test
 
-print(classification_report(y_test,prediction_2))
+print(classification_report(y_test, prediction_2))
 
 """##**Tercer Modelo**"""
 
-#tercer modelo
-model_3 =MLPClassifier(hidden_layer_sizes=(10,10,10),
-                       activation = 'relu',
-                       learning_rate_init=0.01,
-                       max_iter=5000, 
-                       solver='lbfgs')
+# tercer modelo
+model_3 = MLPClassifier(hidden_layer_sizes=(10, 10, 10),
+                        activation='relu',
+                        learning_rate_init=0.01,
+                        max_iter=5000,
+                        solver='lbfgs')
 
 
-#model_1 = MLPClassifier(hidden_layer_sizes=(6,6,6),
-                   # activation = 'logistic',
-                    #learning_rate_init=0.01,
-                    #solver='lbfgs',
-                    #max_iter=6000)'''
+# model_1 = MLPClassifier(hidden_layer_sizes=(6,6,6),
+# activation = 'logistic',
+# learning_rate_init=0.01,
+# solver='lbfgs',
+# max_iter=6000)'''
 
 model_3.fit(X_train, y_train)
 
 prediction_3 = model_3.predict(X_test)
 prediction_3
 
-print(classification_report(y_test,prediction_3))
-
-
-
+print(classification_report(y_test, prediction_3))
 
 
 """##**Cuarto Modelo**"""
 
-import tensorflow as tf
 
 input_size = 6
 output_size = 1
 hidden_layers = 6
 
 model_4 = tf.keras.Sequential([
-                             tf.keras.layers.Dense(hidden_layers, activation='relu'),
-                             tf.keras.layers.Dense(hidden_layers, activation='relu'),
-                             tf.keras.layers.Dense(output_size, activation='softmax')])
+    tf.keras.layers.Dense(hidden_layers, activation='relu'),
+    tf.keras.layers.Dense(hidden_layers, activation='relu'),
+    tf.keras.layers.Dense(output_size, activation='softmax')])
 
-model_4.compile(optimizer='adam',loss='mse', metrics=['accuracy'])
+model_4.compile(optimizer='adam', loss='mse', metrics=['accuracy'])
 model_4.compile(optimizer=)
 
 batch_size = 10

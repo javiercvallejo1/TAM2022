@@ -143,16 +143,35 @@ def Fourier_transform(signal, freq_sample):
     plt.show()
 
 
-filepath = r'data\Datos_caso_A.csv'
+filepath = r'data/Datos_caso_A.csv'
+
+def calculate_time_vector(amplitude_vector,sampling_rate):
+    vector_size = np.squeeze(np.array(amplitude_vector)).shape
+    sampling_rate : int= sampling_rate  # sampling rate, since we dont have a time reference, is mandatory
+    sampling_period = 1/sampling_rate  # time spacing between two samples
+    max_time = vector_size/sampling_rate
+    time = np.arange(0, max_time, sampling_period)
+    return time
 
 
-f = amp.size
-sampling_rate = 20000  # sampling rate, since we dont have a time reference, is mandatory
-sampling_period = 1/sampling_rate  # time spacing between two samples
-max_time = f/sampling_rate
-time = np.arange(0, max_time, sampling_period)
+df=pd.read_csv(filepath #COMMENT THIS ONE WHEN WORKING WITH MATLAB SOURCES
+
+            #    ,names=[ "a(t)_0", 
+            #             "a(t)_1",
+            #             "a(t)_2",
+            #             "a(t)_3",
+            #             "v(t)_0",
+            #             "v(t)_1"
+            #             "v(t)_2",
+            #             "v(t)_3",
+            #             "x(t)_0",
+            #             "x(t)_1",
+            #             "x(t)_2",
+            #             "x(t)_3"]
+                        )
 
 
-df = pd.read_csv(filepath)  # CHANGE THE FILEPATH
+time= calculate_time_vector(df["a(t)_0"],20000)
 
-print(df.head())
+print(time.shape)
+
