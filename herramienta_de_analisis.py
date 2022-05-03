@@ -143,15 +143,29 @@ def Fourier_transform(signal, freq_sample):
     plt.show()
 
 
-filepath = r'data/Datos_caso_A.csv'
 
-def calculate_time_vector(amplitude_vector,sampling_rate):
-    vector_size = np.squeeze(np.array(amplitude_vector)).shape
+
+def calculate_time_vector(dataframe,sampling_rate):
+    vector_size=len(dataframe)
     sampling_rate : int= sampling_rate  # sampling rate, since we dont have a time reference, is mandatory
     sampling_period = 1/sampling_rate  # time spacing between two samples
     max_time = vector_size/sampling_rate
     time = np.arange(0, max_time, sampling_period)
-    return time
+    return np.array(time)
+
+def crest_factor(rms_vector,peak_vector):
+    crest_vector=[]
+    for rms, peak in zip(rms_vector,peak_vector):
+    
+        crest_factor= peak[0]/rms[0]
+        crest_vector.append(crest_factor)
+    return crest_vector
+
+
+###################################################################################
+filepath = r'data/Datos_caso_B.csv'
+window = 20000
+sampling_rate = 20000
 
 
 df=pd.read_csv(filepath #COMMENT THIS ONE WHEN WORKING WITH MATLAB SOURCES
@@ -172,6 +186,187 @@ df=pd.read_csv(filepath #COMMENT THIS ONE WHEN WORKING WITH MATLAB SOURCES
 
 
 time= calculate_time_vector(df["a(t)_0"],20000)
+df['time'] = time
 
-print(time.shape)
+acceleration = [ df["a(t)_0"]
+                ,df["a(t)_1"]
+                ,df["a(t)_2"]
+                ,df["a(t)_3"]                                            
+                ]
 
+velocity=[df["v(t)_0"]
+          ,df["v(t)_1"]
+          ,df["v(t)_2"]
+          ,df["v(t)_3"]]
+
+
+displacement = [df["x(t)_0"]
+                ,df["x(t)_1"]
+                ,df["x(t)_2"]
+                ,df["x(t)_3"]]
+
+
+
+####  RMS
+RMS_acceleration=[]
+
+for i in acceleration:
+    rms = RMS_ventaneado(window, i, sampling_rate)
+    RMS_acceleration.append(rms)
+
+print("RMS ACCELERATION",RMS_acceleration)
+
+
+
+RMS_velocity = []
+
+for i in velocity:
+    rms = RMS_ventaneado(window, i, sampling_rate)
+    RMS_velocity.append(rms)
+
+print("RMS VELOCITY",RMS_velocity)
+
+RMS_displacement = []
+
+for i in acceleration:
+    rms = RMS_ventaneado(window, i, sampling_rate)
+    RMS_displacement.append(rms)
+
+print("RMS DISPLACEMENT",RMS_displacement)
+
+##### STD 
+
+STD_acceleration=[]
+
+for i in acceleration:
+    std= std_ventaneado(window, i, sampling_rate)
+    STD_acceleration.append(std)
+
+print("STD ACCELERATION",STD_acceleration)
+
+
+STD_velocity = []
+
+for i in velocity:
+    std = std_ventaneado(window, i, sampling_rate)
+    STD_velocity.append(std)
+
+print("STD VELOCITY",STD_velocity)
+
+STD_displacement = []
+
+for i in acceleration:
+    std = std_ventaneado(window, i, sampling_rate)
+    STD_displacement.append(std)
+
+print("STD DISPLACEMENT",STD_displacement)
+
+##### MEAN
+
+
+mean_acceleration=[]
+
+for i in acceleration:
+    mean= mean_ventaneado(window, i, sampling_rate)
+    mean_acceleration.append(mean)
+
+print("mean ACCELERATION",mean_acceleration)
+
+
+mean_velocity = []
+
+for i in velocity:
+    mean = mean_ventaneado(window, i, sampling_rate)
+    mean_velocity.append(mean)
+
+print("mean VELOCITY",mean_velocity)
+
+mean_displacement = []
+
+for i in acceleration:
+    mean = mean_ventaneado(window, i, sampling_rate)
+    mean_displacement.append(mean)
+
+print("mean DISPLACEMENT",mean_displacement)
+
+
+#####P2P
+
+PK_acceleration=[]
+
+for i in acceleration:
+    PK= PK_ventaneado(window, i, sampling_rate)
+    PK_acceleration.append(PK)
+
+print("PK ACCELERATION",PK_acceleration)
+
+
+PK_velocity = []
+
+for i in velocity:
+    PK = PK_ventaneado(window, i, sampling_rate)
+    PK_velocity.append(PK)
+
+print("PK VELOCITY",PK_velocity)
+
+PK_displacement = []
+
+for i in acceleration:
+    PK = PK_ventaneado(window, i, sampling_rate)
+    PK_displacement.append(PK)
+
+print("PK DISPLACEMENT",PK_displacement)
+
+###### KTS
+
+KTS_acceleration=[]
+
+for i in acceleration:
+    KTS= KTS_ventaneado(window, i, sampling_rate)
+    KTS_acceleration.append(KTS)
+
+print("KTS ACCELERATION",KTS_acceleration)
+
+
+KTS_velocity = []
+
+for i in velocity:
+    KTS = KTS_ventaneado(window, i, sampling_rate)
+    KTS_velocity.append(KTS)
+
+print("KTS VELOCITY",KTS_velocity)
+
+KTS_displacement = []
+
+for i in acceleration:
+    KTS = KTS_ventaneado(window, i, sampling_rate)
+    KTS_displacement.append(KTS)
+
+print("KTS DISPLACEMENT",KTS_displacement)
+
+#####CREST
+
+
+crest_acc = crest_factor(RMS_acceleration,PK_acceleration)
+print("CREST ACCELERATION",crest_acc)
+
+
+crest_vel = crest_factor(RMS_velocity,PK_velocity)
+print("CREST VELOCITY",crest_vel)
+
+
+crest_disp = crest_factor(RMS_displacement,PK_displacement)
+print("CREST DISPLACEMENT",crest_disp)
+
+###FOURIER PLOTS
+
+# for signal in velocity:
+#     Fourier_transform(np.array(signal), sampling_rate)
+
+
+plt.figure(figsize=(10, 5))
+plt.title("Orbitales Datos B sensores 1-0", fontdict={
+            'family': 'monospace', 'weight': 'bold', 'size': 10})
+plt.grid()
+plt.plot(displacement[1], displacement[0])
+plt.show()
